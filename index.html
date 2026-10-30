@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hawks After Dark</title>
+    <meta
+      name="description"
+      content="Batting stats, box scores and lineups for the Hawks After Dark softball team."
+    />
+    <meta name="theme-color" content="#121212" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Hawks After Dark" />
+    <meta
+      property="og:description"
+      content="Batting stats, box scores and lineups for the Hawks After Dark softball team."
+    />
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="icon" href="assets/favicon.png" />
+    <link rel="apple-touch-icon" href="assets/favicon.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="assets/app.css" />
+  </head>
+  <body>
+    <header class="site-head"></header>
+
+    <main class="wrap">
+      <div id="banner"></div>
+      <div id="view">
+        <p class="loading">Loading the season…</p>
+      </div>
+    </main>
+
+    <footer class="site-foot wrap">
+      <p>
+        Every number on this site is read from the CSV files in
+        <code>data/games/</code>. Add a game by adding a file.
+      </p>
+    </footer>
+
+    <script type="module" src="js/main.js"></script>
+    <noscript>
+      <p class="wrap">This site reads its stats from CSV files in the browser, so it needs JavaScript on.</p>
+    </noscript>
+  </body>
+</html>

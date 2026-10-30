@@ -1,0 +1,9 @@
+{
+  "name": "hawks-after-dark",
+  "private": true,
+  "description": "Static softball stats site. No dependencies, no build step.",
+  "scripts": {
+    "index": "node tools/build-index.mjs",
+    "start": "node tools/serve.mjs"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "team": "Hawks After Dark",
+  "tagline": "Johnson County softball",
+
+  "leagues": [
+    { "id": "wednesday", "label": "Wednesday", "short": "Wed", "aliases": ["wed", "w"] },
+    { "id": "thursday", "label": "Thursday", "short": "Thu", "aliases": ["thu", "thur", "thurs", "t"] }
+  ],
+
+  "seasons": [
+    { "id": "spring", "label": "Spring", "months": [3, 4, 5] },
+    { "id": "summer", "label": "Summer", "months": [6, 7, 8] },
+    { "id": "fall", "label": "Fall", "months": [9, 10, 11] },
+    { "id": "winter", "label": "Winter", "months": [12, 1, 2] }
+  ],
+
+  "playerAliases": {}
+}

@@ -1,0 +1,48 @@
+name: Index games
+
+# Keeps data/games/index.json in step with the CSV files in data/games/, so
+# adding a game only ever means adding one file.
+#
+# This needs "Read and write permissions" under
+# Settings → Actions → General → Workflow permissions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/games/**.csv"
+      - "tools/build-index.mjs"
+      - ".github/workflows/index-games.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: index-games
+  cancel-in-progress: true
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Rebuild the game index
+        run: node tools/build-index.mjs
+
+      - name: Commit it if it changed
+        run: |
+          if git diff --quiet -- data/games/index.json; then
+            echo "index.json is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/games/index.json
+          git commit -m "Index games"
+          git push
