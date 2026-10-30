@@ -1,7 +1,8 @@
 {
-  "generated": "2026-10-30T14:35:13.545Z",
-  "count": 1,
+  "generated": "2026-10-30T15:04:27.567Z",
+  "count": 2,
   "games": [
-    "2026-10-29_wednesday_Bumper_19-12.csv"
+    "2026-10-29_wednesday_Bumper_19-12.csv",
+    "2020-01-01_wednesday_Workflow-Test_1-0.csv"
   ]
 }
