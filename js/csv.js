@@ -102,7 +102,9 @@ function fieldingColumns(header) {
  * Returns `{ lines, teamRuns }`; teamRuns comes from the Totals row when present.
  */
 export function parseGameChanger(text) {
-  const rows = parseCsv(text);
+  // Some exporters start the file with a byte-order mark, which would
+  // otherwise glue itself onto the first column's name.
+  const rows = parseCsv(text.replace(/^﻿/, ''));
   const headerIndex = rows.findIndex((r) => r.some((c) => c.trim().toUpperCase() === 'AB'));
   if (headerIndex < 0) {
     throw new Error("no 'AB' column found — is this a GameChanger batting export?");

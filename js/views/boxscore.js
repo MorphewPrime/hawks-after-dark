@@ -3,7 +3,7 @@
 import { el, empty, sortRows, sortableTable } from '../ui.js';
 import { formatDate, formatTime, labelFor } from '../model.js';
 import { BOX_SCORE_COLUMNS, sumStats, withRates } from '../stats.js';
-import { leagueBadge, playerLink, scoreLine } from './common.js';
+import { leagueBadge, playerLink, scoreLine, uploadNote } from './common.js';
 
 const state = { sort: { key: 'ops', dir: -1 } };
 
@@ -46,14 +46,17 @@ export function render(app, params) {
       el(
         'p.subtitle',
         leagueBadge(app, game.league),
-        formatDate(game.date, { weekday: 'long' }),
+        formatDate(game.date, { weekday: 'long' }) + uploadNote(game),
         game.time ? el('span.sep', '·') : null,
         game.time ? formatTime(game.time) : null,
         game.season ? el('span.sep', '·') : null,
         game.season ? labelFor(app.season.config.seasons, game.season) : null,
       ),
-      game.teamRuns != null &&
-        el('p.scoreline', { dataset: { result: game.result ?? 'none' } }, outcome ?? '', ' ', scoreLine(game)),
+      // A final score needs both sides. With only our runs (read from the
+      // export's totals row) there is no result to claim, just the runs.
+      game.result
+        ? el('p.scoreline', { dataset: { result: game.result } }, outcome, ' ', scoreLine(game))
+        : game.teamRuns != null && el('p.scoreline', 'Scored ', String(game.teamRuns)),
     ),
     rows.length
       ? sortableTable({

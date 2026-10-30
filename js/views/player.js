@@ -1,7 +1,7 @@
 /** One player: totals for the scope, a split per league, and a game log. */
 
 import { el, empty, sortableTable } from '../ui.js';
-import { ALL, formatDate, gamesInScope, labelFor, totalsByPlayer } from '../model.js';
+import { ALL, formatDate, gamesInScope, totalsByPlayer } from '../model.js';
 import { BOX_SCORE_COLUMNS, column, emptyStats, fmtStat, withRates } from '../stats.js';
 import { leagueBadge, scopeBar } from './common.js';
 
@@ -48,7 +48,8 @@ export function render(app, params) {
         ),
       ),
     ),
-    scopeBar(app),
+    // Seasons only: the page already splits by league underneath.
+    scopeBar(app, { leagues: false }),
     overall ? statCard('Overall', overall, true) : empty('No games in this filter', 'Try widening the season.'),
     perLeague.length > 1 &&
       el('div.split-grid', perLeague.map(({ league, totals }) => statCard(league.label, totals, false, league.id))),

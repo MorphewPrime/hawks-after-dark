@@ -58,9 +58,29 @@ function repoUrl() {
   return host && repo ? 'https://github.com/' + host[1] + '/' + repo : null;
 }
 
+/** The page last drawn, so a re-render of the same page keeps its scroll. */
+let lastPath = null;
+
+/**
+ * Draws the current page. Views call this after every change, rebuilding
+ * their whole DOM, so two things are carried across:
+ *   - focus and caret, for any input marked `data-keep`, so typing into a
+ *     search box or the Min AB field is not cut off after one keystroke
+ *   - scroll position, unless this is a different page from last time
+ */
 function render() {
   const { route, params } = currentRoute();
   const view = document.getElementById('view');
+  const path = location.hash.split('?')[0];
+
+  const active = document.activeElement;
+  const keep = active?.dataset?.keep;
+  let caret = null;
+  try {
+    caret = active?.selectionStart ?? null;
+  } catch {
+    // Number inputs refuse to report a caret.
+  }
 
   document.querySelectorAll('.nav a').forEach((a) => {
     a.classList.toggle('is-active', a.dataset.nav === route.nav);
@@ -73,7 +93,19 @@ function render() {
     mount(view, problem('Something went wrong drawing this page', err.message));
   }
   document.title = route.view.title + ' · ' + app.season.config.team;
-  window.scrollTo({ top: 0 });
+
+  if (keep) {
+    const again = view.querySelector(`[data-keep="${keep}"]`);
+    again?.focus();
+    try {
+      if (caret !== null) again?.setSelectionRange(caret, caret);
+    } catch {
+      // As above: not every input has a caret.
+    }
+  }
+
+  if (path !== lastPath) window.scrollTo({ top: 0 });
+  lastPath = path;
 }
 
 function problem(title, message) {

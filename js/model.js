@@ -5,8 +5,9 @@
  *   data/config.json       leagues, seasons and name fixes
  *   data/games/*.csv       one GameChanger export per game
  *
- * A game's details live in its filename, so adding a game means dropping one
- * file in one folder. See `parseGameFilename` for the format.
+ * Adding a game means dropping its CSV into data/games/. The filename can
+ * carry details the export does not (date, league, score) but needs none of
+ * them: see `parseGameFilename`, and `loadSeason` for how gaps are filled.
  */
 
 import { parseGameChanger } from './csv.js';
@@ -19,104 +20,144 @@ const GAMES = DATA + '/games';
 /* Filenames                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const SCORE = /^(\d{1,3})-(\d{1,3})$/;
-const TIME = /^(\d{1,2})[.:-]?(\d{2})(am|pm)?$/i;
-
 /**
- * Reads a game's details out of its filename. Tokens are separated by "_" and
- * recognised by shape, so only the date has to come first:
+ * Reads whatever it can out of a game's filename.
  *
- *   2026-10-29_wednesday_Bumper_19-12.csv
- *   2026-10-29_wednesday_Bumper.csv                 score not in yet
- *   2026-10-29_wed_Pitch-Please_7-12_630pm.csv      hyphens become spaces
- *   2026-07-02_thu_Bumper_11-4_fall.csv             overrides the season
+ * Nothing here is required. Each piece is looked for by shape and lifted out
+ * of the name; whatever text is left over is taken to be the opponent. So all
+ * of these work, and so does a file straight out of GameChanger:
  *
- * Returns null when there is no date, which is the one thing we cannot guess.
+ *   Bumper.csv                                   opponent only
+ *   2026-10-29 Bumper 19-12.csv                  spaces are fine
+ *   10-29-2026_wed_Bumper_19-12.csv              US dates too
+ *   2026-10-29_wed_Pitch-Please_7-12_6.30pm.csv  the lot
+ *
+ * Anything it cannot find comes back null and is filled in elsewhere: the date
+ * falls back to when the file was added to the repo, and the opponent to the
+ * filename itself.
  */
 export function parseGameFilename(filename, config) {
-  const base = filename.replace(/\.csv$/i, '');
-  const tokens = base.split('_').map((t) => t.trim()).filter(Boolean);
+  const found = {};
+  let rest = filename.replace(/\.csv$/i, '').trim();
 
-  let date = null;
-  let league = null;
-  let season = null;
-  let time = null;
-  let teamRuns = null;
-  let oppRuns = null;
-  const rest = [];
-
-  for (const token of tokens) {
-    const lower = token.toLowerCase();
-
-    if (!date && DATE.test(token)) {
-      date = token;
-      continue;
-    }
-    if (!league && findLeague(lower, config)) {
-      league = findLeague(lower, config).id;
-      continue;
-    }
-    if (!season && findSeason(lower, config)) {
-      season = findSeason(lower, config).id;
-      continue;
-    }
-
-    const score = token.match(SCORE);
-    if (teamRuns === null && score) {
-      teamRuns = Number(score[1]);
-      oppRuns = Number(score[2]);
-      continue;
-    }
-
-    const t = token.match(TIME);
-    if (!time && t && /^\d{3,4}$|am|pm/i.test(token)) {
-      time = normalizeTime(t);
-      continue;
-    }
-
-    rest.push(token);
-  }
-
-  if (!date) return null;
+  // Order matters. The date owns its hyphens, so it has to come out before
+  // anything tries to read "10-29" as a score.
+  rest = takeDate(rest, found);
+  rest = takeTime(rest, found);
+  rest = takeScore(rest, found);
+  rest = takeNamed(rest, config.leagues, 'league', found);
+  rest = takeNamed(rest, config.seasons, 'season', found);
 
   return {
-    date,
-    league: league ?? config.leagues[0]?.id ?? 'league',
-    season: season ?? seasonForDate(date, config),
-    time,
-    teamRuns,
-    oppRuns,
-    opponent: rest.length ? rest.join(' ').replace(/-/g, ' ').trim() : null,
+    date: found.date ?? null,
+    league: found.league ?? null,
+    season: found.season ?? null,
+    time: found.time ?? null,
+    teamRuns: found.teamRuns ?? null,
+    oppRuns: found.oppRuns ?? null,
+    opponent: tidy(rest),
   };
 }
 
-function findLeague(token, config) {
-  return config.leagues.find(
-    (l) => l.id === token || l.label.toLowerCase() === token || (l.aliases ?? []).includes(token),
-  );
+const pad = (n) => String(n).padStart(2, '0');
+
+/** A separator, or the start/end of the name. */
+const EDGE = '(?:^|[\\s_.-])';
+const END = '(?=$|[\\s_.-])';
+
+function takeDate(text, found) {
+  const iso = text.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) {
+    found.date = `${iso[1]}-${pad(iso[2])}-${pad(iso[3])}`;
+    return text.replace(iso[0], ' ');
+  }
+  // 10-29-2026, 10.29.26, 10/29/2026
+  const us = text.match(/(\d{1,2})[-._/](\d{1,2})[-._/](\d{2,4})/);
+  if (us) {
+    const year = us[3].length === 2 ? '20' + us[3] : us[3];
+    found.date = `${year}-${pad(us[1])}-${pad(us[2])}`;
+    return text.replace(us[0], ' ');
+  }
+  return text;
 }
 
-function findSeason(token, config) {
-  return config.seasons.find((s) => s.id === token || s.label.toLowerCase() === token);
+/** Only with am/pm — a bare "630" in a filename is far more often not a time. */
+function takeTime(text, found) {
+  const m = text.match(new RegExp(EDGE + '(\\d{1,2})[:.]?(\\d{2})?\\s*(am|pm)' + END, 'i'));
+  if (!m) return text;
+  let hour = Number(m[1]);
+  const meridiem = m[3].toLowerCase();
+  if (meridiem === 'pm' && hour < 12) hour += 12;
+  if (meridiem === 'am' && hour === 12) hour = 0;
+  found.time = `${pad(hour)}:${m[2] ?? '00'}`;
+  return text.replace(m[0], ' ');
 }
 
-/** Falls back to the season whose months contain the game's month. */
-function seasonForDate(date, config) {
+function takeScore(text, found) {
+  const m = text.match(new RegExp(EDGE + '(\\d{1,2})\\s*-\\s*(\\d{1,2})' + END));
+  if (!m) return text;
+  found.teamRuns = Number(m[1]);
+  found.oppRuns = Number(m[2]);
+  return text.replace(m[0], ' ');
+}
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Matches a league or season by its id, label or any alias, whole-word. */
+function takeNamed(text, list, key, found) {
+  for (const item of list) {
+    for (const name of [item.id, item.label, ...(item.aliases ?? [])]) {
+      const re = new RegExp(EDGE + escapeRe(name) + END, 'i');
+      if (re.test(text)) {
+        found[key] = item.id;
+        return text.replace(re, ' ');
+      }
+    }
+  }
+  return text;
+}
+
+/**
+ * Whatever is left is the opponent. Separators become spaces, and two things
+ * people add without meaning them as part of the name go: a leading "vs" or
+ * "at", and the " (1)" a browser tacks onto a second download of the same file.
+ */
+function tidy(text) {
+  const name = text
+    .replace(/[_.-]+/g, ' ')
+    .replace(/\s*\(\d+\)\s*$/, '')
+    .replace(/^\s*(vs|v|versus|at|@)\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return name || null;
+}
+
+/** The season whose months contain the game's month. */
+export function seasonForDate(date, config) {
+  if (!date) return null;
   const month = Number(date.slice(5, 7));
   const match = config.seasons.find((s) => (s.months ?? []).includes(month));
   return match ? match.id : null;
 }
 
-function normalizeTime(match) {
-  let hour = Number(match[1]);
-  const minute = match[2];
-  const meridiem = match[3] ? match[3].toLowerCase() : null;
-  if (meridiem === 'pm' && hour < 12) hour += 12;
-  if (meridiem === 'am' && hour === 12) hour = 0;
-  // No am/pm given on an evening-league hour: assume PM.
-  if (!meridiem && hour < 12) hour += 12;
-  return String(hour).padStart(2, '0') + ':' + minute;
+/**
+ * The league, when the filename does not name one. In order:
+ *   - a game date that falls on a league's night ("wednesday" on a Wednesday)
+ *   - a season that only has one league (Summer is Thursday only)
+ *   - the first league in config
+ * The weekday only counts for a date read from the filename: the day a file
+ * happened to be uploaded says nothing about the night the game was played.
+ */
+function inferLeague(config, seasonId, date, dateFromName) {
+  if (date && dateFromName) {
+    const [y, m, d] = date.split('-').map(Number);
+    const night = new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const match = config.leagues.find((l) => l.id === night || l.label.toLowerCase() === night);
+    if (match) return match.id;
+  }
+  const season = config.seasons.find((s) => s.id === seasonId);
+  if (season?.leagues?.length === 1) return season.leagues[0];
+  return config.leagues[0]?.id ?? null;
 }
 
 /** "18:30" to "6:30 PM" */
@@ -130,6 +171,7 @@ export function formatTime(time) {
 
 /** "2026-10-29" to "Thu, Oct 29, 2026", built locally so the date never shifts. */
 export function formatDate(date, opts = {}) {
+  if (!date) return 'Date not set';
   const [y, m, d] = date.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined, {
     weekday: opts.weekday ?? 'short',
@@ -165,6 +207,11 @@ function primaryPosition(innings) {
 /* Loading                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/** An index entry is either "game.csv" or { file, added }. */
+function indexEntry(entry) {
+  return typeof entry === 'string' ? { file: entry, added: null } : { file: entry.file, added: entry.added ?? null };
+}
+
 async function fetchJson(path) {
   const res = await fetch(path, { cache: 'no-cache' });
   if (!res.ok) throw new Error(path + ' could not be loaded (' + res.status + ')');
@@ -182,7 +229,7 @@ async function fetchJson(path) {
 export async function loadSeason() {
   const config = await fetchJson(DATA + '/config.json');
   const index = await fetchJson(GAMES + '/index.json');
-  const files = (index.games ?? []).filter((f) => /\.csv$/i.test(f));
+  const entries = (index.games ?? []).map(indexEntry).filter((e) => /\.csv$/i.test(e.file));
 
   const problems = [];
   const games = [];
@@ -190,13 +237,13 @@ export async function loadSeason() {
   const players = new Map();
 
   const loaded = await Promise.all(
-    files.map(async (file) => {
+    entries.map(async (entry) => {
       try {
-        const res = await fetch(GAMES + '/' + encodeURIComponent(file));
+        const res = await fetch(GAMES + '/' + encodeURIComponent(entry.file));
         if (!res.ok) throw new Error('could not be loaded (' + res.status + ')');
-        return { file, text: await res.text() };
+        return { ...entry, text: await res.text() };
       } catch (err) {
-        problems.push({ file, message: err.message });
+        problems.push({ file: entry.file, message: err.message });
         return null;
       }
     }),
@@ -206,10 +253,6 @@ export async function loadSeason() {
     if (!entry) continue;
 
     const meta = parseGameFilename(entry.file, config);
-    if (!meta) {
-      problems.push({ file: entry.file, message: 'the filename needs to start with a YYYY-MM-DD date' });
-      continue;
-    }
 
     let parsed;
     try {
@@ -220,15 +263,22 @@ export async function loadSeason() {
     }
 
     const id = entry.file.replace(/\.csv$/i, '');
+    // Nothing in the filename is required. What it does not say, we work out:
+    // the date from when the file reached the repo, the season from the date,
+    // the league from the night or the season, the opponent from the name
+    // itself, and the runs we scored from the CSV's own totals row.
+    const date = meta.date ?? entry.added ?? null;
+    const season = meta.season ?? seasonForDate(date, config);
     const teamRuns = meta.teamRuns ?? parsed.teamRuns;
 
     games.push({
       id,
       file: entry.file,
-      date: meta.date,
+      date,
+      dateIsGuessed: !meta.date && !!date,
       time: meta.time,
-      league: meta.league,
-      season: meta.season,
+      league: meta.league ?? inferLeague(config, season, date, !!meta.date),
+      season,
       opponent: meta.opponent,
       teamRuns,
       oppRuns: meta.oppRuns,
@@ -237,28 +287,28 @@ export async function loadSeason() {
 
     for (const line of parsed.lines) {
       const canonical = (config.playerAliases ?? {})[line.name] ?? line.name;
-      const id2 = playerId(canonical);
+      const pid = playerId(canonical);
       const position = primaryPosition(line.innings);
-      const existing = players.get(id2);
+      const existing = players.get(pid);
 
       if (!existing) {
-        players.set(id2, {
-          id: id2,
+        players.set(pid, {
+          id: pid,
           name: canonical,
           jersey: line.jersey,
           position,
-          lastSeen: meta.date,
+          lastSeen: date,
         });
       } else {
         // Keep the most recent jersey number; keep any position we can find.
-        if (meta.date >= existing.lastSeen) {
-          existing.lastSeen = meta.date;
+        if (date && (!existing.lastSeen || date >= existing.lastSeen)) {
+          existing.lastSeen = date;
           if (line.jersey) existing.jersey = line.jersey;
         }
         if (position && !existing.position) existing.position = position;
       }
 
-      stats.push({ playerId: id2, gameId: id, ...line.stats });
+      stats.push({ playerId: pid, gameId: id, ...line.stats });
     }
   }
 
@@ -273,8 +323,10 @@ export async function loadSeason() {
   };
 }
 
-/** Newest first; within a date the earliest start time first, untimed last. */
+/** Newest first; within a date the earliest start time first, untimed last.
+ *  A game with no date at all sorts to the bottom. */
 export function compareGames(a, b) {
+  if (!a.date !== !b.date) return a.date ? -1 : 1;
   if (a.date !== b.date) return a.date < b.date ? 1 : -1;
   if (a.time === b.time) return a.id.localeCompare(b.id);
   if (!a.time) return 1;
@@ -310,26 +362,7 @@ export function totalsByPlayer(season, scope) {
   return totals;
 }
 
-/** Only the leagues that actually have games, so the filters stay honest. */
-export function leaguesWithGames(season, seasonId = ALL) {
-  const ids = new Set(
-    season.games.filter((g) => seasonId === ALL || g.season === seasonId).map((g) => g.league),
-  );
-  return season.config.leagues.filter((l) => ids.has(l.id));
-}
-
-export function seasonsWithGames(season) {
-  const ids = new Set(season.games.map((g) => g.season));
-  return season.config.seasons.filter((s) => ids.has(s.id));
-}
-
 export function labelFor(list, id, fallback = '—') {
   const found = list.find((x) => x.id === id);
   return found ? found.label : fallback;
-}
-
-export function leagueLabel(season, id, short = false) {
-  const league = season.config.leagues.find((l) => l.id === id);
-  if (!league) return id;
-  return short ? league.short ?? league.label : league.label;
 }

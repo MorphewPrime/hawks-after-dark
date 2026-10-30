@@ -24,8 +24,12 @@ export function el(tag, attrs, ...children) {
   if (id) node.id = id;
   if (classes.length) node.className = classes.join(' ');
 
-  if (attrs && (typeof attrs !== 'object' || Array.isArray(attrs) || attrs instanceof Node)) {
-    children.unshift(attrs);
+  // Only a plain object is attributes. Anything else is the first child —
+  // including 0, which a truthiness check would drop (a 0-5 score, an empty
+  // bench count).
+  const isAttrs = attrs !== null && typeof attrs === 'object' && !Array.isArray(attrs) && !(attrs instanceof Node);
+  if (!isAttrs) {
+    if (attrs !== undefined) children.unshift(attrs);
     attrs = null;
   }
 
@@ -57,20 +61,11 @@ export function mount(container, ...children) {
   return container;
 }
 
-/** A link into the hash router: `link('#/players/gus-ketchell', 'Gus')`. */
-export function link(href, ...children) {
-  return el('a', { href }, ...children);
-}
-
-export function heading(title, subtitle) {
-  return el('header.page-head', el('h1', title), subtitle && el('p.subtitle', subtitle));
-}
-
 export function empty(title, message, action) {
   return el('div.empty', el('p.empty-title', title), el('p', message), action);
 }
 
-/** A segmented control. Options are `{ id, label }`; returns the element. */
+/** A segmented control. Options are `{ id, label, disabled? }`. */
 export function segmented(label, options, value, onChange) {
   return el(
     'div.segmented',
@@ -81,7 +76,8 @@ export function segmented(label, options, value, onChange) {
         {
           type: 'button',
           class: opt.id === value ? 'is-active' : null,
-          'aria-pressed': opt.id === value,
+          'aria-pressed': String(opt.id === value),
+          disabled: !!opt.disabled,
           onclick: () => onChange(opt.id),
         },
         opt.label,

@@ -1,7 +1,9 @@
 name: Index games
 
 # Keeps data/games/index.json in step with the CSV files in data/games/, so
-# adding a game only ever means adding one file.
+# adding a game only ever means adding one file. The index also records the
+# day each file was added, which the site uses as the game date when the
+# filename does not give one.
 #
 # This needs "Read and write permissions" under
 # Settings → Actions → General → Workflow permissions.
@@ -27,6 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the date a game file was first committed is read
+          # from git log, which a shallow clone cannot answer.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:

@@ -1,38 +1,50 @@
 /** Pieces more than one view needs. */
 
 import { el, segmented } from '../ui.js';
-import { ALL, formatDate, formatTime, leaguesWithGames, seasonsWithGames } from '../model.js';
+import { ALL, formatDate, formatTime } from '../model.js';
 import { record } from '../stats.js';
 
+/** The leagues that play in a season, per config; every league for All. */
+function leaguesIn(config, seasonId) {
+  const season = config.seasons.find((s) => s.id === seasonId);
+  return season?.leagues ?? config.leagues.map((l) => l.id);
+}
+
 /**
- * The season and league filters. Leagues that have no games in the chosen
- * season are left out rather than shown disabled, which keeps the Wednesday
- * and Thursday splits honest without hard-coding which season has which.
+ * The season and league filters, always shown in full whatever the data
+ * holds. A league that does not play in the chosen season is greyed out —
+ * Spring is Wednesday only, Summer Thursday only — which config.json says.
+ *
+ * Pass `{ leagues: false }` where a league choice would do nothing.
  */
-export function scopeBar(app) {
-  const seasons = seasonsWithGames(app.season);
-  const leagues = leaguesWithGames(app.season, app.scope.season);
-  const everything = { id: ALL, label: 'All' };
+export function scopeBar(app, { leagues = true } = {}) {
+  const { config } = app.season;
+  const open = leaguesIn(config, app.scope.season);
 
   const setScope = (patch) => {
     Object.assign(app.scope, patch);
-    // Dropping to a season that does not include the chosen league widens it.
-    const stillThere = leaguesWithGames(app.season, app.scope.season);
-    if (app.scope.league !== ALL && !stillThere.some((l) => l.id === app.scope.league)) {
+    // Moving to a season the chosen league does not play in widens it to All.
+    if (app.scope.league !== ALL && !leaguesIn(config, app.scope.season).includes(app.scope.league)) {
       app.scope.league = ALL;
     }
     app.render();
   };
 
-  // With one season and one league there is nothing to filter, so show nothing.
-  if (seasons.length < 2 && leagues.length < 2) return null;
-
   return el(
     'div.filters',
-    seasons.length > 1 &&
-      segmented('Season', [everything, ...seasons], app.scope.season, (season) => setScope({ season })),
-    leagues.length > 1 &&
-      segmented('League', [everything, ...leagues], app.scope.league, (league) => setScope({ league })),
+    segmented(
+      'Season',
+      [{ id: ALL, label: 'All Seasons' }, ...config.seasons],
+      app.scope.season,
+      (season) => setScope({ season }),
+    ),
+    leagues &&
+      segmented(
+        'League',
+        [{ id: ALL, label: 'All Leagues' }, ...config.leagues.map((l) => ({ ...l, disabled: !open.includes(l.id) }))],
+        app.scope.league,
+        (league) => setScope({ league }),
+      ),
   );
 }
 
@@ -51,20 +63,21 @@ export function playerLink(player) {
   );
 }
 
-/** "12 games · 8-4" */
+/** "26 games · Record 14-11" */
 export function recordLine(games) {
   const { label } = record(games);
   const count = games.length === 1 ? '1 game' : games.length + ' games';
-  return el('p.subtitle', count, games.length ? el('span.sep', '·') : null, games.length ? el('strong', label) : null);
-}
-
-export function gameTitle(app, game) {
-  return 'vs ' + (game.opponent ?? 'Unknown') + ' · ' + formatDate(game.date);
+  return el('p.subtitle', count, el('span.sep', '·'), 'Record ', el('strong', label));
 }
 
 export function gameWhen(game) {
   const time = formatTime(game.time);
-  return formatDate(game.date) + (time ? ' · ' + time : '');
+  return formatDate(game.date) + uploadNote(game) + (time ? ' · ' + time : '');
+}
+
+/** Flags a date taken from the upload day, so nobody mistakes it for game night. */
+export function uploadNote(game) {
+  return game.dateIsGuessed ? ' (upload date)' : '';
 }
 
 /** Only a final score is worth showing; a half-known one just looks broken. */
