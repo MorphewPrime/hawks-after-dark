@@ -96,10 +96,17 @@ function shell(season) {
     header,
     el(
       'div.wrap.head-inner',
+      // The logo is the team's name set in type, so it replaces the wordmark
+      // when it loads and the wordmark stands in when there is no logo file.
       el(
         'a.brand',
         { href: '#/' },
-        el('img', { src: 'assets/logo.png', alt: '', onerror: (e) => e.target.remove() }),
+        el('img', {
+          src: 'assets/logo.png',
+          alt: season.config.team,
+          onload: (e) => e.target.closest('.brand').classList.add('has-logo'),
+          onerror: (e) => e.target.remove(),
+        }),
         el('span.brand-text', season.config.team),
       ),
       el(
