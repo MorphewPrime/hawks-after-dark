@@ -34,7 +34,7 @@ header.
    wrangler secret put ADMIN_KEY
    ```
    `ADMIN_KEY` is any long random string (`node -e "console.log(crypto.randomUUID()+crypto.randomUUID())"`).
-    If the repo is not `morphewprime/hawks-after-dark`, change `REPO` in
+    If the repo is not `MorphewPrime/hawks-after-dark`, change `REPO` in
    [`wrangler.jsonc`](wrangler.jsonc) and redeploy.
 4. **Point the site at it.** Add this to [`data/config.json`](../data/config.json)
    and commit:
