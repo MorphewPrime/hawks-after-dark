@@ -25,7 +25,7 @@ Pages serves the files exactly as they sit here.
    GitHub switches them off on forks until you do.
 
 A minute later the site is live at
-`https://<your-username>.github.io/<repo-name>/`.
+`https://morphewprime.github.io/hawks-after-dark/`.
 
 ---
 
