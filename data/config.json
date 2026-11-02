@@ -12,5 +12,10 @@
     { "id": "fall", "label": "Fall", "months": [9, 10, 11], "leagues": ["wednesday", "thursday"] }
   ],
 
-  "playerAliases": {}
+  "playerAliases": {},
+
+  "admin": {
+    "base": "https://hawks-amdin.jackmorphew101.workers.dev",
+    "key": "76c20557-e782-462a-8988-17106a04bff4742f9b28-d967-4977-8842-8b26d8e4256d"
+  }
 }
