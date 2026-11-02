@@ -82,6 +82,32 @@ node tools/build-index.mjs
 
 ---
 
+## Admin — uploading and editing from the site
+
+The site can commit to this repo itself. A tiny worker in [`proxy/`](proxy)
+holds a GitHub token (it never reaches the browser) and the admin screen, at
+`#/admin`, talks to it:
+
+- **Add a game** — pick one or more GameChanger CSVs. Each is parsed in the
+  page first (a file that is not a batting export is refused before it is sent
+  anywhere), then committed to `data/games/` under the name it downloaded with.
+- **Edit a game** — every game page has an **Edit CSV** link (as does the
+  games list on the admin screen). The file opens as a grid of inputs, one per
+  cell; rows can be added and removed; saving commits the file back and the
+  box score updates on the spot.
+
+Nothing changes about how the site works until you wire the proxy up: without
+an `"admin"` entry in `data/config.json` the admin screen just says no proxy
+is configured. See [proxy/README.md](proxy/README.md) for the five-minute setup
+(token, `wrangler deploy`, two secrets, one config entry).
+
+The trade-off, in one line: the admin key ships in the page's JavaScript, so it
+is a speed bump, not a wall — but the token that could rewrite the repo stays
+on the worker, and the worker only writes `data/games/*.csv` and the config
+file.
+
+---
+
 ## Changing the team, leagues or seasons
 
 [`data/config.json`](data/config.json) holds the team name, the leagues, the
@@ -129,11 +155,16 @@ js/
   csv.js                CSV reader, and the GameChanger translation
   stats.js              batting maths; every column the site can show
   ui.js                 element helper, sortable table, filter buttons
+  admin-api.js          client for the admin proxy (base64 + one request)
   views/                one file per screen; lineup.js also draws the field
+                        admin.js is the upload/edit screen (#/admin)
 data/
-  config.json           team, leagues, seasons, name fixes
+  config.json           team, leagues, seasons, name fixes; optional "admin"
   games/*.csv           one file per game — the only thing you add
   games/index.json      generated; lists the CSVs and when each was added
+proxy/
+  src/index.js          the worker that commits on the site's behalf
+  wrangler.jsonc        its config (repo name, branch)
 tools/
   build-index.mjs       rebuilds that index
   serve.mjs             local preview server

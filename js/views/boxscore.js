@@ -3,6 +3,7 @@
 import { el, empty, sortRows, sortableTable } from '../ui.js';
 import { formatDate, formatTime, labelFor } from '../model.js';
 import { BOX_SCORE_COLUMNS, sumStats, withRates } from '../stats.js';
+import { adminReady } from '../admin-api.js';
 import { leagueBadge, playerLink, scoreLine, uploadNote } from './common.js';
 
 const state = { sort: { key: 'ops', dir: -1 } };
@@ -71,6 +72,11 @@ export function render(app, params) {
           footer: { cells: [el('strong', 'Team')], values: withRates(sumStats(lines)) },
         })
       : empty('No batting lines', 'The CSV for this game has no player rows.'),
-    el('p.file-note', 'From ', el('code', game.file)),
+    el(
+      'p.file-note',
+      'From ',
+      el('code', game.file),
+      adminReady(app) && el('a.link-button.no-print', { href: '#/admin?game=' + encodeURIComponent(game.id) }, 'Edit CSV'),
+    ),
   );
 }

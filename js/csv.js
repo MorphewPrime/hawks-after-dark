@@ -41,6 +41,15 @@ export function parseCsv(text) {
   return rows.filter((r) => r.some((c) => c.trim() !== ''));
 }
 
+/**
+ * The writer for our files: every cell quoted, LF line endings, a trailing
+ * newline — so `writeCsv(parseCsv(text))` leaves a file exactly as it was.
+ */
+export function writeCsv(rows) {
+  const quote = (cell) => '"' + String(cell ?? '').replaceAll('"', '""') + '"';
+  return rows.map((row) => row.map(quote).join(',')).join('\n') + '\n';
+}
+
 /** Rows that look like a player but are not one. */
 const NOT_A_PLAYER = /^(totals?|team|glossary|opponents?)$/i;
 

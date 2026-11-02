@@ -1327,6 +1327,71 @@ table.batting tr.is-dragging .sticky {
   font-size: 0.8rem;
 }
 
+/* ----------------------------------------------------------------- admin -- */
+
+.admin-file {
+  display: block;
+  max-width: 100%;
+  margin-bottom: 12px;
+  color: var(--muted);
+}
+
+.upload-list {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
+.upload-name {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.upload-ok {
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.upload-bad {
+  color: var(--red);
+  font-size: 0.8rem;
+}
+
+.upload-remove {
+  padding: 2px 8px;
+}
+
+/* The CSV editor: one input per cell of the game's file. */
+
+.admin-table input.cell-input {
+  width: 100%;
+  min-width: 44px;
+  padding: 5px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-table .admin-rowcol {
+  width: 34px;
+  text-align: center;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 /* ---------------------------------------------------------------- footer -- */
 
 .site-foot {

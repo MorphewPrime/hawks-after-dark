@@ -12,6 +12,7 @@ import * as games from './views/games.js';
 import * as boxscore from './views/boxscore.js';
 import * as player from './views/player.js';
 import * as lineup from './views/lineup.js';
+import * as admin from './views/admin.js';
 
 const ROUTES = [
   { pattern: /^\/?$/, view: leaderboard, nav: 'leaderboard' },
@@ -19,6 +20,8 @@ const ROUTES = [
   { pattern: /^\/games\/?$/, view: games, nav: 'games' },
   { pattern: /^\/players\/(.+)$/, view: player, keys: ['id'], nav: 'leaderboard' },
   { pattern: /^\/lineup\/?$/, view: lineup, nav: 'lineup' },
+  // No nav item: the admin screen is a direct link (#/admin) only.
+  { pattern: /^\/admin\/?$/, view: admin },
 ];
 
 const NAV = [
