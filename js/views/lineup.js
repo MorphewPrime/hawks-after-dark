@@ -293,21 +293,16 @@ function download(blob, filename) {
 
 /**
  * A chip on the field is barely wider than a thumb, so it shows the shortest
- * name that still says who it is: a first name, or "Gabe S." when two players
- * share one. The batting order below always shows the full name.
+ * name that still says who it is: a first name with the last initial, like
+ * "Gabe S.". The batting order below always shows the full name.
  */
 function shortNames(players) {
-  const counts = new Map();
-  for (const p of players) {
-    const first = p.name.split(/\s+/)[0];
-    counts.set(first, (counts.get(first) ?? 0) + 1);
-  }
   return new Map(
     players.map((p) => {
       const parts = p.name.split(/\s+/);
       const first = parts[0];
       const last = parts[parts.length - 1];
-      return [p.id, counts.get(first) > 1 && last !== first ? first + ' ' + last[0] + '.' : first];
+      return [p.id, last !== first ? first + ' ' + last[0] + '.' : first];
     }),
   );
 }
