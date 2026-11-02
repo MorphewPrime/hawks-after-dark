@@ -14,7 +14,7 @@
  */
 
 import { el, empty } from '../ui.js';
-import { totalsByPlayer } from '../model.js';
+import { ALL, totalsByPlayer } from '../model.js';
 import { COLUMNS, column, emptyStats, fmtStat, withRates } from '../stats.js';
 import { scopeBar } from './common.js';
 
@@ -23,6 +23,13 @@ export const POSITIONS = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'LC', 'RC', 'R
 
 const STORE_KEY = 'hawks.lineups';
 const DEFAULT_METRICS = ['ba', 'slg', 'ops'];
+
+/**
+ * Rasterising a node to an image is the one thing this site cannot do with
+ * plain DOM, so the helper is pulled from a CDN only when Export image is
+ * pressed — the site itself still ships no dependencies.
+ */
+const IMAGE_HELPER = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/+esm';
 
 const state = {
   order: [],
@@ -33,6 +40,7 @@ const state = {
   saved: false,
   dialog: null,
   search: '',
+  exporting: false,
 };
 
 /**
@@ -72,46 +80,54 @@ export function render(app, params) {
     header(app),
     el('div.no-print', scopeBar(app)),
     el(
-      'div.lineup-layout',
+      'div.lineup-export',
+      exportHead(app),
       el(
-        'section.lineup-pane',
-        paneHead(
-          'Defense',
-          Object.keys(state.positions).length + '/10',
-          el(
-            'button.link-button.no-print',
-            {
-              type: 'button',
-              disabled: !Object.keys(state.positions).length,
-              onclick: () => {
-                if (!confirm('Clear all defensive positions? The batting order is kept.')) return;
-                state.positions = {};
-                save(app);
+        'div.lineup-layout',
+        el(
+          'section.lineup-pane',
+          paneHead(
+            'Defense',
+            Object.keys(state.positions).length + '/10',
+            el(
+              'button.link-button.no-print.lineup-controls',
+              {
+                type: 'button',
+                disabled: !Object.keys(state.positions).length,
+                onclick: () => {
+                  if (!confirm('Clear all defensive positions? The batting order is kept.')) return;
+                  state.positions = {};
+                  save(app);
+                },
               },
-            },
-            '↺ Clear field',
-          ),
-        ),
-        diamond(app, byId),
-        benchRow(app, eh),
-      ),
-      el(
-        'section.lineup-pane',
-        paneHead(
-          'Batting order',
-          state.order.length === 1 ? '1 player' : state.order.length + ' players',
-          el('button.button.ghost.no-print', { type: 'button', onclick: () => open(app, 'roster') }, 'Roster'),
-        ),
-        batters.length
-          ? battingTable(app, batters, totals)
-          : empty(
-              'No players selected',
-              'Pick who is playing tonight and they drop into the order.',
-              el('button.button', { type: 'button', onclick: () => open(app, 'roster') }, 'Select players'),
+              '↺ Clear field',
             ),
+          ),
+          diamond(app, byId),
+          benchRow(app, eh),
+        ),
+        el(
+          'section.lineup-pane',
+          paneHead(
+            'Batting order',
+            state.order.length === 1 ? '1 player' : state.order.length + ' players',
+            el(
+              'button.button.ghost.no-print.lineup-controls',
+              { type: 'button', onclick: () => open(app, 'roster') },
+              'Roster',
+            ),
+          ),
+          batters.length
+            ? battingTable(app, batters, totals)
+            : empty(
+                'No players selected',
+                'Pick who is playing tonight and they drop into the order.',
+                el('button.button', { type: 'button', onclick: () => open(app, 'roster') }, 'Select players'),
+              ),
+        ),
       ),
     ),
-    footer(),
+    footer(app),
     state.dialog && dialog(app, roster, byId),
   );
 }
@@ -137,16 +153,138 @@ function paneHead(label, count, action) {
   return el('div.pane-head', el('h2', label, el('span.pane-count', count)), action);
 }
 
-function footer() {
+/**
+ * The card the exported image opens with. It exists only for the capture —
+ * on screen the page header already carries the name and the scope bar the
+ * filters — so it stays hidden until the clone is marked for capture.
+ */
+function exportHead(app) {
+  return el(
+    'div.lineup-capture-head',
+    el('img.capture-logo', { src: 'assets/logo.png', alt: '' }),
+    el('div', el('h2', state.name), el('p.muted', scopeLabel(app))),
+  );
+}
+
+/** "All Seasons · Combined", or "Fall · Wednesday" for a scoped lineup. */
+function scopeLabel(app) {
+  const { config } = app.season;
+  const season =
+    app.scope.season === ALL
+      ? 'All Seasons'
+      : config.seasons.find((s) => s.id === app.scope.season)?.label ?? 'All Seasons';
+  const league =
+    app.scope.league === ALL
+      ? 'Combined'
+      : config.leagues.find((l) => l.id === app.scope.league)?.label ?? 'Combined';
+  return season + ' · ' + league;
+}
+
+function footer(app) {
   return el(
     'div.lineup-foot.no-print',
     el('button.button.ghost', { type: 'button', onclick: copyLink }, 'Copy link'),
+    el(
+      'button.button.ghost',
+      {
+        type: 'button',
+        disabled: !state.order.length || state.exporting,
+        onclick: () => exportImage(app),
+      },
+      state.exporting ? 'Exporting…' : 'Export image',
+    ),
     el(
       'button.button.ghost',
       { type: 'button', disabled: !state.order.length, onclick: () => window.print() },
       'Print / save as PDF',
     ),
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Export image                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Rasterises the lineup to a PNG the way a screenshot would: the live dark
+ * theme, the field, the order — not the print stylesheet, which goes white.
+ *
+ * The working copy is a clone, parked off-screen and flagged with
+ * .lineup-image-capture, so the interactive furniture (grips, pickers,
+ * steppers) is stripped out and the capture header stands in for the page
+ * one. The real view is never touched, so a failed export cannot leave the
+ * page in a broken state.
+ */
+async function exportImage(app) {
+  if (state.exporting) return;
+
+  state.exporting = true;
+  app.render();
+  // The render above replaced the view, so the exportable card must be looked
+  // up again: computed styles read off a detached node come back empty.
+  const source = document.querySelector('.lineup-export');
+  if (!source) {
+    state.exporting = false;
+    app.render();
+    return;
+  }
+
+  try {
+    const clone = source.cloneNode(true);
+    clone.classList.add('lineup-image-capture');
+
+    // The field's colours live in CSS classes, and some browsers drop those
+    // when they rasterise a foreignObject, so bake the resolved fill and
+    // stroke into every shape of the clone.
+    const sourceShapes = source.querySelectorAll('svg path, svg circle, svg rect, svg line');
+    clone.querySelectorAll('svg path, svg circle, svg rect, svg line').forEach((shape, i) => {
+      const resolved = getComputedStyle(sourceShapes[i]);
+      shape.setAttribute('fill', resolved.fill);
+      shape.setAttribute('stroke', resolved.stroke);
+    });
+
+    document.body.appendChild(clone);
+
+    try {
+      await document.fonts.ready;
+      const { toBlob } = await import(IMAGE_HELPER);
+      const options = {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),
+        width: 1120,
+        height: clone.scrollHeight,
+        style: { position: 'static', left: 'auto' },
+      };
+      // A warm-up pass: iOS Safari often drops images and fonts on the first
+      // render of a foreignObject, and the second one keeps them.
+      await toBlob(clone, options).catch(() => null);
+      const blob = await toBlob(clone, options);
+      if (!blob) throw new Error('empty image');
+      download(blob, (state.name.replace(/[^a-z0-9 -]/gi, '').trim() || 'lineup') + '.png');
+    } finally {
+      clone.remove();
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Image export failed. Please try again.');
+  } finally {
+    state.exporting = false;
+    app.render();
+  }
+}
+
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // The object URL is only needed for the click above; drop it after the
+  // download has had a chance to start.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -236,18 +374,20 @@ function battingTable(app, batters, totals) {
     'div.table-wrap',
     el(
       'table.stats.batting',
-      el(
-        'thead',
         el(
-          'tr',
-          el('th.no-print.grip-col', ''),
-          el('th.num-col', '#'),
-          el('th.sticky', 'Player'),
-          el('th', 'Pos'),
-          state.metrics.map((metric, i) => el('th.num', metricPicker(app, metric, i))),
-          el('th.no-print', ''),
+          'thead',
+          el(
+            'tr',
+            el('th.no-print.lineup-controls.grip-col', ''),
+            el('th.num-col', '#'),
+            el('th.sticky', 'Player'),
+            el('th', 'Pos'),
+            state.metrics.map((metric, i) =>
+              el('th.num', metricPicker(app, metric, i), el('span.lineup-export-only', metricLabel(metric))),
+            ),
+            el('th.no-print.lineup-controls', ''),
+          ),
         ),
-      ),
       el('tbody', batters.map((player, i) => battingRow(app, player, i, batters.length, totals))),
     ),
   );
@@ -261,7 +401,7 @@ function battingRow(app, player, index, length, totals) {
     'tr',
     { dataset: { player: player.id } },
     el(
-      'td.no-print.grip-col',
+      'td.no-print.lineup-controls.grip-col',
       el(
         'button.grip',
         {
@@ -289,7 +429,7 @@ function battingRow(app, player, index, length, totals) {
     ),
     state.metrics.map((metric) => el('td.num', stats ? fmtStat(metric, values[metric]) : '—')),
     el(
-      'td.no-print.row-actions',
+      'td.no-print.lineup-controls.row-actions',
       el(
         'span.stepper',
         el(
@@ -383,9 +523,14 @@ function startDrag(event, app, row) {
   addEventListener('pointercancel', onUp);
 }
 
+/** The picker's column heading, for when a native select would not survive rasterisation. */
+function metricLabel(metric) {
+  return COLUMNS.find((c) => c.key === metric)?.label ?? metric;
+}
+
 function metricPicker(app, metric, index) {
   return el(
-    'select.metric-select',
+    'select.metric-select.lineup-controls',
     {
       'aria-label': 'Stat column ' + (index + 1),
       onchange: (e) => {

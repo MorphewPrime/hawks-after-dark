@@ -772,6 +772,67 @@ table.stats tfoot .sticky {
   border-top: 1px solid var(--line);
 }
 
+/* Image export. The live card is cloned off-screen and flagged with
+   .lineup-image-capture: a fixed width, the two-column layout whatever the
+   viewport, the interactive furniture removed, and the capture header —
+   logo, name, scope — standing in for the page header the clone cannot see. */
+
+.lineup-capture-head {
+  display: none;
+}
+
+.lineup-export-only {
+  display: none;
+}
+
+.lineup-image-capture {
+  position: absolute;
+  top: 0;
+  left: -20000px;
+  width: 1120px;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.lineup-image-capture .lineup-capture-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lineup-image-capture .capture-logo {
+  height: 56px;
+  width: auto;
+}
+
+.lineup-image-capture .lineup-capture-head h2 {
+  font-size: 2.25rem;
+}
+
+.lineup-image-capture .lineup-capture-head p {
+  margin: 4px 0 0;
+}
+
+.lineup-image-capture .lineup-layout {
+  grid-template-columns: minmax(420px, 1fr) minmax(0, 1.08fr);
+  gap: 16px;
+}
+
+.lineup-image-capture .lineup-controls {
+  display: none;
+}
+
+.lineup-image-capture .lineup-export-only {
+  display: block;
+}
+
+.lineup-image-capture .table-wrap {
+  overflow: visible;
+}
+
 /* The field. Its shape and where each card sits both come from lineup.js;
    nothing here knows a coordinate. */
 
@@ -1006,14 +1067,17 @@ table.stats .grip-col {
   cursor: grabbing;
 }
 
-table.batting tr.is-dragging,
-table.batting tr.is-dragging .sticky {
-  background: var(--surface-2);
-}
-
 table.batting tr.is-dragging {
+  background: var(--surface-2);
   outline: 1px solid var(--cyan);
   outline-offset: -1px;
+}
+
+/* The sticky cell is a positioned box, so it paints over the row's outline.
+   Leaving it transparent lets the row's highlight and outline run the full
+   width, instead of the name column reading as its own, oversized box. */
+table.batting tr.is-dragging .sticky {
+  background: transparent;
 }
 
 .order-number {
