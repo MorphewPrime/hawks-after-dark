@@ -62,16 +62,64 @@ function repoUrl() {
 let lastPath = null;
 
 /**
+ * The scroll offsets of every scrollable area inside a view: the roster
+ * dialog's list, the position pickers and the wide stat tables all scroll on
+ * their own, and a re-render replaces their nodes, so their offsets would
+ * otherwise snap back to the top on every change.
+ */
+function captureScrolls(root) {
+  const out = [];
+  root.querySelectorAll('*').forEach((node) => {
+    if (node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth) {
+      out.push({
+        key: node.tagName.toLowerCase() + '.' + [...node.classList].join('.'),
+        x: node.scrollLeft,
+        y: node.scrollTop,
+      });
+    }
+  });
+  return out;
+}
+
+/** Puts captured offsets back on the same scrollable areas of a new view. */
+function restoreScrolls(root, saved) {
+  const pools = new Map();
+  root.querySelectorAll('*').forEach((node) => {
+    if (node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth) {
+      const key = node.tagName.toLowerCase() + '.' + [...node.classList].join('.');
+      const list = pools.get(key) ?? [];
+      list.push(node);
+      pools.set(key, list);
+    }
+  });
+  const used = new Map();
+  for (const entry of saved) {
+    const list = pools.get(entry.key) ?? [];
+    const i = used.get(entry.key) ?? 0;
+    used.set(entry.key, i + 1);
+    const node = list[i];
+    if (node) {
+      node.scrollLeft = entry.x;
+      node.scrollTop = entry.y;
+    }
+  }
+}
+
+/**
  * Draws the current page. Views call this after every change, rebuilding
- * their whole DOM, so two things are carried across:
+ * their whole DOM, so three things are carried across when the page is the
+ * same as last time:
  *   - focus and caret, for any input marked `data-keep`, so typing into a
  *     search box or the Min AB field is not cut off after one keystroke
- *   - scroll position, unless this is a different page from last time
+ *   - the scroll of any inner scrollable area, so ticking a box in the
+ *     roster dialog does not drag the list back to the top
+ *   - the window scroll, which is reset only when the page itself changed
  */
 function render() {
   const { route, params } = currentRoute();
   const view = document.getElementById('view');
   const path = location.hash.split('?')[0];
+  const samePage = path === lastPath;
 
   const active = document.activeElement;
   const keep = active?.dataset?.keep;
@@ -85,6 +133,8 @@ function render() {
   document.querySelectorAll('.nav a').forEach((a) => {
     a.classList.toggle('is-active', a.dataset.nav === route.nav);
   });
+
+  const scrolls = samePage ? captureScrolls(view) : null;
 
   try {
     mount(view, route.view.render(app, params));
@@ -103,6 +153,9 @@ function render() {
       // As above: not every input has a caret.
     }
   }
+
+  // Last, so a focus that nudges a scrollable area into view cannot undo it.
+  if (scrolls) restoreScrolls(view, scrolls);
 
   if (path !== lastPath) window.scrollTo({ top: 0 });
   lastPath = path;
