@@ -1,10 +1,114 @@
 {
-  "generated": "2026-10-30T20:33:57.285Z",
-  "count": 1,
+  "generated": "2026-11-02T16:56:22.315Z",
+  "count": 27,
   "games": [
     {
       "file": "2026-10-29_wednesday_Bumper_19-12.csv",
       "added": "2026-10-30"
+    },
+    {
+      "file": "2026-10-28_wednesday_Bumper_Draggers_19-18.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-10-22_thursday_Chico's_Bail_Bonds_11-23.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-10-21_wednesday_Black_Eagles_13-15.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-10-15_thursday_Operation_Shutdown_24-11.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-10-07_wednesday_Alcoballics_21-5.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-09-23_wednesday_Trout_23-13.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-09-17_thursday_Chico's_Bail_Bonds_16-11.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-09-17_thursday_Band_of_Buds_15-0.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-09-16_wednesday_Free_State_Homes_Outlaws_21-19.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-09-10_thursday_Band_of_Buds_13-12.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-09-03_thursday_Not_so_Naturals_16-15.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-09-02_thursday_Chico's_Bail_Bonds_19-3.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-08-27_thursday_Nevernutz_11-1.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-08-20_thursday_Nevernutz_14-9.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-08-13_thursday_Operation_Shutdown_5-9.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-08-06_thursday_Operation_Shutdown_15-5.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-07-23_thursday_Not_so_Naturals_11-14.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-07-16_thursday_Band_of_Buds_8-7.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-07-09_thursday_Chico's_Bail_Bonds_13-15.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-05-13_wednesday_Free_State_Homes_Outlaws_11-16.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-05-12_wednesday_Black_Eagles_no_score.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-05-06_wednesday_Free_State_Homes_Outlaws_7-19.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-04-29_wednesday_Here_for_the_Beer_4-6.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-04-22_wednesday_Trout_4-14.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-04-08_wednesday_Black_Eagles_11-13.csv",
+      "added": "2026-11-02"
+    },
+    {
+      "file": "2026-04-01_wednesday_Free_State_Homes_Outlaws_2-14.csv",
+      "added": "2026-11-02"
     }
   ]
 }
